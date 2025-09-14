@@ -1,37 +1,48 @@
 import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import asyncio
 from openpyxl import load_workbook
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 
-TOKEN = "8303903539:AAF9uP0x9ntBfkG7V26WGEiYmQxjYX5DwDo"
-WEBHOOK_URL = "https://ton-app.onrender.com"
+# --- CONFIG ---
+TOKEN = "TON_TOKEN_ICI"
+WEBHOOK_URL = "https://TON_ADRESSE_RENDER.onrender.com"
 PORT = int(os.environ.get("PORT", 10000))
+EXCEL_FILE = "kt++.xlsx"  # Assure-toi que ce fichier est dans ton repo
 
-# Charger Excel
-wb = load_workbook("kt++.xlsx")
+# --- CHARGEMENT DU FICHIER EXCEL ---
+wb = load_workbook(EXCEL_FILE)
 ws = wb.active
 
-# Commande start
+# Convertit les lignes en dictionnaire {clé: paragraphe}
+excel_data = {str(row[0].value): row[1].value for row in ws.iter_rows(min_row=2, values_only=True)}
+
+# --- HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Bot prêt à fonctionner H24 !")
+    await update.message.reply_text("Bot prêt ! Envoie une clé pour recevoir le paragraphe correspondant.")
 
-# Commande pour chercher un paragraphe
-async def search_paragraph(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = " ".join(context.args)
-    for row in ws.iter_rows(values_only=True):
-        if query.lower() in str(row[0]).lower():
-            await update.message.reply_text(str(row[1]))
-            return
-    await update.message.reply_text("Paragraphe non trouvé.")
+async def get_paragraph(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    key = update.message.text.strip()
+    paragraph = excel_data.get(key)
+    if paragraph:
+        await update.message.reply_text(paragraph)
+    else:
+        await update.message.reply_text("Aucun paragraphe trouvé pour cette clé.")
 
-# Création de l'application
-app = ApplicationBuilder().token(TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("search", search_paragraph))
+# --- APPLICATION ---
+async def main():
+    app = ApplicationBuilder().token(TOKEN).build()
 
-# Lancement du webhook **sans asyncio.run()**
-app.run_webhook(
-    listen="0.0.0.0",
-    port=PORT,
-    webhook_url=f"{WEBHOOK_URL}/{TOKEN}"
-)
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_paragraph))
+
+    # Lancement du webhook
+    await app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url=f"{WEBHOOK_URL}/{TOKEN}"
+    )
+
+# --- RUN ---
+if __name__ == "__main__":
+    asyncio.run(main())
