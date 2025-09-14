@@ -1,50 +1,40 @@
 import os
-import asyncio
 from openpyxl import load_workbook
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 
-# Ton token et URL webhook
+# 🔹 Token et webhook
 TOKEN = "8303903539:AAF9uP0x9ntBfkG7V26WGEiYmQxjYX5DwDo"
 WEBHOOK_URL = "https://ktbot.onrender.com"
 
-# Charger le fichier Excel
-wb = load_workbook("kt++.xlsx")
-sheet = wb.active
-print(f"{sheet.max_row} paragraphes chargés.")
+# 🔹 Lecture Excel
+wb = load_workbook("kt++.xlsx")  # fichier dans le repo Render
+ws = wb.active
+paragraphs = [cell.value for cell in ws['A'] if cell.value]
 
-# Créer le bot
-app = ApplicationBuilder().token(TOKEN).build()
+# 🔹 Handlers
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Salut ! Envoie un numéro de paragraphe.")
 
-# Commande /start
-async def start(update: Update, context):
-    await update.message.reply_text("Bonjour ! Envoie un numéro de paragraphe pour recevoir son contenu.")
-
-app.add_handler(CommandHandler("start", start))
-
-# Répondre aux messages textes (numéro de paragraphe)
-async def send_paragraph(update: Update, context):
-    text = update.message.text
-    if text.isdigit():
-        num = int(text)
-        if 1 <= num <= sheet.max_row:
-            paragraph = sheet[f"A{num}"].value
-            await update.message.reply_text(f"Paragraphe {num} : {paragraph}")
+async def send_paragraph(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        idx = int(update.message.text) - 1
+        if 0 <= idx < len(paragraphs):
+            await update.message.reply_text(paragraphs[idx])
         else:
-            await update.message.reply_text("Numéro de paragraphe invalide.")
-    else:
-        await update.message.reply_text("Envoie un numéro de paragraphe.")
+            await update.message.reply_text("Numéro invalide.")
+    except:
+        await update.message.reply_text("Envoie un numéro valide.")
 
+# 🔹 Application
+app = ApplicationBuilder().token(TOKEN).build()
+app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, send_paragraph))
 
-# Déployer en webhook
-async def main():
-    await app.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
-    await app.run_webhook(
+# 🔹 Déploiement Webhook Render
+if __name__ == "__main__":
+    app.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get("PORT", 10000)),
         webhook_url=f"{WEBHOOK_URL}/{TOKEN}"
     )
-
-if __name__ == "__main__":
-    asyncio.run(main())
