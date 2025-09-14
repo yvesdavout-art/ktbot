@@ -186,7 +186,7 @@ async def set_bot_webhook():
 @flask_app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
-    app.dispatcher.process_update(update)
+    asyncio.create_task(app.update_queue.put(update))
     return "ok"
 
 # 🔹 ApplicationBuilder
