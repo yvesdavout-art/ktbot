@@ -1,56 +1,36 @@
+# bot_webhook.py
+
 import os
-from flask import Flask, request
+import asyncio
 from telegram import Update, Bot
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, ContextTypes
 from openpyxl import load_workbook
+import pandas as pd
 
-# 🔹 Variables d'environnement Render
-TOKEN = os.environ.get("8303903539:AAF9uP0x9ntBfkG7V26WGEiYmQxjYX5DwDo")  # Ton token Telegram
-WEBHOOK_URL = os.environ.get("https://ktbot.onrender.com")  # URL Render
+# 🔹 Variables
+TOKEN = "8303903539:AAF9uP0x9ntBfkG7V26WGEiYmQxjYX5DwDo"
+WEBHOOK_URL = "https://ktbot.onrender.com"  # Ton URL Render
+PORT = int(os.environ.get("PORT", 5000))
 
-# 🔹 Flask
-flask_app = Flask(__name__)
+# 🔹 Charger ton fichier Excel (mettre le chemin relatif)
+wb = load_workbook("kt++.xlsx")  # Ton fichier Excel doit être dans le repo Render
+sheet = wb.active
 
-# 🔹 Initialisation bot
-bot = Bot(token=TOKEN)
-app = Application.builder().token(TOKEN).build()
-
-# 🔹 Charger Excel (fichier dans le repo)
-EXCEL_FILE = "kt++.xlsx"
-wb = load_workbook(EXCEL_FILE)
-ws = wb.active
-print(f"{ws.max_row} paragraphes chargés.")
-
-# 🔹 Commandes existantes
-
+# 🔹 Fonction de test
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Bot prêt et opérationnel !")
+    await update.message.reply_text("Bot prêt et fonctionnel !")
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Voici les commandes disponibles : /start, /help, /autrecommande")
-
-async def autrecommande(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Ceci est ta commande personnalisée !")
-
-# 🔹 Ajouter les handlers
+# 🔹 Créer l'application
+app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("help", help_command))
-app.add_handler(CommandHandler("autrecommande", autrecommande))
 
-# 🔹 Flask route pour Telegram
-@flask_app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
-    update = Update.de_json(request.get_json(force=True), bot)
-    # Pousser la mise à jour dans la queue du bot
-    app.update_queue.put_nowait(update)
-    return "ok"
+# 🔹 Fonction main pour lancer le webhook
+async def main():
+    await app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url=f"{WEBHOOK_URL}/{TOKEN}"
+    )
 
-# 🔹 Déploiement Render
 if __name__ == "__main__":
-    # Définir le webhook sur Telegram
-    bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
-    print("Webhook défini, bot prêt à fonctionner H24.")
-
-    # Lancer Flask sur Render
-    port = int(os.environ.get("PORT", 5000))
-    flask_app.run(host="0.0.0.0", port=port)
+    asyncio.run(main())
