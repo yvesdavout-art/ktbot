@@ -15,7 +15,7 @@ WEBHOOK_URL = "https://ktbot.onrender.com"  # Remplace par ton URL Render
 
 # 🔹 Charger l'Excel
 paragraphs = {}
-wb = load_workbook(r"C:\m\kt++.xlsx")
+wb = load_workbook("kt++.xlsx")
 ws = wb.active
 
 for row in ws.iter_rows(min_row=2, values_only=True):
